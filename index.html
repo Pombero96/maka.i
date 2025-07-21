@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Juego Maka'i</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .card {
+            display: inline-block;
+            width: 240px; /* 3 veces más grande */
+            height: 360px; /* 3 veces más grande */
+            margin: 5px;
+            position: relative;
+        }
+        .controls {
+            margin: 20px;
+        }
+        .result {
+            margin: 20px;
+            font-size: 20px;
+        }
+        .hand {
+            margin-bottom: 20px;
+        }
+        .hidden-card {
+            background-color: #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>Juego Maka'i</h1>
+    <div class="hand">
+        <h2>Mano del Jugador</h2>
+        <div id="player-hand" class="hand-cards"></div>
+        <div id="player-value" class="hand-value"></div>
+    </div>
+    <div class="hand">
+        <h2>Banca</h2>
+        <div id="dealer-hand" class="hand-cards"></div>
+        <div id="dealer-value" class="hand-value"></div>
+    </div>
+    <div class="controls">
+        <button onclick="startGame()">Comenzar Juego</button>
+        <button onclick="drawCard()" disabled id="draw-button">Pedir Carta</button>
+        <button onclick="stand()" disabled id="stand-button">Plantarse</button>
+    </div>
+    <div class="result" id="result"></div>
+
+    <script>
+        const deck = [];
+        const suits = ['oro', 'copa', 'espada', 'basto'];
+
+        // Agregar cartas del 1 al 7
+        for (let i = 1; i <= 7; i++) {
+            for (let j = 0; j < 4; j++) {
+                deck.push({ value: i, suit: suits[j], image: `images/${i}_${suits[j]}.jpg` });
+            }
+        }
+
+        // Agregar figuras (sota, caballo, rey) con valor 0
+        const figures = [10, 11, 12];
+        for (let figure of figures) {
+            for (let j = 0; j < 4; j++) {
+                deck.push({ value: 0, suit: suits[j], image: `images/${figure}_${suits[j]}.jpg` });
+            }
+        }
+
+        let playerHand = [];
+        let dealerHand = [];
+        let playerValue = 0;
+        let dealerValue = 0;
+        let handsPlayed = 0;
+        const maxHands = 7;
+
+        function shuffleDeck() {
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+        }
+
+        function resetGame() {
+            playerHand = [];
+            dealerHand = [];
+            playerValue = 0;
+            dealerValue = 0;
+            shuffleDeck();
+            document.getElementById('result').textContent = '';
+            updateUI(false);
+        }
+
+        function startGame() {
+            if (handsPlayed < maxHands) {
+                resetGame();
+                playerHand = [drawCardFromDeck(), drawCardFromDeck()];
+                dealerHand = [drawCardFromDeck(), drawCardFromDeck()];
+                playerValue = calculateHandValue(playerHand);
+                dealerValue = calculateHandValue(dealerHand);
+                updateUI(false);
+                document.getElementById('draw-button').disabled = false;
+                document.getElementById('stand-button').disabled = false;
+                handsPlayed++;
+            } else {
+                document.getElementById('result').textContent = 'Has alcanzado el límite de manos. Recarga la página para jugar de nuevo.';
+            }
+        }
+
+        function drawCard() {
+            if (playerHand.length < 3) {
+                playerHand.push(drawCardFromDeck());
+                playerValue = calculateHandValue(playerHand);
+                updateUI(true);
+                document.getElementById('draw-button').disabled = true;
+                document.getElementById('stand-button').disabled = true;
+                dealerPlay();
+            }
+        }
+
+        function stand() {
+            document.getElementById('draw-button').disabled = true;
+            document.getElementById('stand-button').disabled = true;
+            dealerPlay();
+        }
+
+        function dealerPlay() {
+            while (dealerHand.length < 3 && dealerValue < 5) {
+                dealerHand.push(drawCardFromDeck());
+                dealerValue = calculateHandValue(dealerHand);
+            }
+            updateUI(true);
+            determineWinner();
+        }
+
+        function drawCardFromDeck() {
+            return deck.pop();
+        }
+
+        function calculateHandValue(hand) {
+            let value = hand.reduce((a, b) => a + b.value, 0);
+            if (hand.length === 2 && value === 0) {
+                return 0;
+            } else if (hand.length === 3 && hand.every(card => card.value === 0)) {
+                return 8.5;
+            } else {
+                if (value > 9) value %= 10;
+                return value;
+            }
+        }
+
+        function updateUI(showDealerHand) {
+            const playerHandDiv = document.getElementById('player-hand');
+            playerHandDiv.innerHTML = '';
+            playerHand.forEach(card => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = `card ${card.suit}`;
+                const cardImg = document.createElement('img');
+                cardImg.src = card.image;
+                cardImg.width = 240; /* 3 veces más grande */
+                cardImg.height = 360; /* 3 veces más grande */
+                cardDiv.appendChild(cardImg);
+                playerHandDiv.appendChild(cardDiv);
+            });
+
+            const dealerHandDiv = document.getElementById('dealer-hand');
+            dealerHandDiv.innerHTML = '';
+            dealerHand.forEach((card, index) => {
+                const cardDiv = document.createElement('div');
+                cardDiv.className = `card ${card.suit}`;
+                const cardImg = document.createElement('img');
+                cardImg.width = 240; /* 3 veces más grande */
+                cardImg.height = 360; /* 3 veces más grande */
+                if (!showDealerHand && index === 1) {
+                    cardImg.src = `images/back.jpg`;
+                } else {
+                    cardImg.src = card.image;
+                }
+                cardDiv.appendChild(cardImg);
+                dealerHandDiv.appendChild(cardDiv);
+            });
+
+            document.getElementById('player-value').textContent = 'Valor: ' + playerValue;
+            document.getElementById('dealer-value').textContent = showDealerHand ? 'Valor: ' + dealerValue : 'Valor: ?';
+        }
+
+        function determineWinner() {
+            let resultText = '';
+            if (playerValue > dealerValue) {
+                resultText = '¡Ganaste!';
+            } else if (playerValue < dealerValue) {
+                resultText = 'Perdiste.';
+            } else {
+                resultText = 'Empate.';
+            }
+            document.getElementById('result').textContent = resultText;
+        }
+    </script>
+</body>
+</html>
